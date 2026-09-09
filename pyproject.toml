@@ -24,6 +24,12 @@ dev = [
     "pytest>=8",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["scripts"]
+
+[tool.pyright]
+extraPaths = ["scripts"]
+
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
 

@@ -293,3 +293,49 @@ def test_invariant_milestones_strictly_increasing():
         predicates["goal_step"],
     ]
     assert all(a < b for a, b in itertools.pairwise(present))
+
+
+# --- Coordinate-convention test (§11) ----------------------------------------
+
+
+def test_coordinate_convention_pins_grid_indexing():
+    """Pins the `x, y = i % width, i // width` grid-indexing convention that
+    planner.py, eval.py, and replay_seed.py all hand-roll against a real
+    seed, so an accidental transposition surfaces here instead of only as a
+    downstream predicate bug.
+
+    Real seed 31's layout (see helpers.py's docstring, replay-verified via
+    scripts/replay_seed.py): key at (1, 2), door at (3, 2), goal at (4, 4),
+    agent starts at (2, 2) facing east (dir 0).
+
+    Limitation: MiniGrid-DoorKey-6x6-v0's grid is square (width == height),
+    so an x/y swap bug would not be caught by this test alone -- it pins the
+    convention against regression, it doesn't independently prove x and y
+    aren't swapped on a square grid.
+    """
+    from typing import cast
+
+    from minigrid.core.world_object import Door, Goal, Key
+    from minigrid.minigrid_env import MiniGridEnv
+
+    from failure_taxonomy_harness.env import make_env
+
+    env = make_env()
+    try:
+        env.reset(seed=31)
+        unwrapped = cast(MiniGridEnv, env.unwrapped)
+        grid = unwrapped.grid
+
+        positions: dict[type, tuple[int, int]] = {}
+        for i, cell in enumerate(grid.grid):
+            if isinstance(cell, (Key, Door, Goal)):
+                x, y = i % grid.width, i // grid.width
+                positions[type(cell)] = (x, y)
+
+        assert positions[Key] == (1, 2)
+        assert positions[Door] == (3, 2)
+        assert positions[Goal] == (4, 4)
+        assert tuple(int(v) for v in unwrapped.agent_pos) == (2, 2)
+        assert int(unwrapped.agent_dir) == 0
+    finally:
+        env.close()
